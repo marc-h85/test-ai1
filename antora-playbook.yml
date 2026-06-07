@@ -6,14 +6,12 @@ site:
 content:
   sources:
     - url: .
-      start_paths:
-        - docs
-      branches:
-        - main
-
+      branches: HEAD
+      start_path: docs
+      
 ui:
   bundle:
-    url: https://gitlab.com/antora/antora-ui-default/-/raw/main/ui-bundles/default.zip
+    url: https://gitlab.com/antora/antora-ui-default/-/jobs/artifacts/HEAD/raw/build/ui-bundle.zip?job=bundle-stable
     snapshot: true
 
 output:
