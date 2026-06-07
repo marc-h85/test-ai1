@@ -1,4 +1,11 @@
 name: gastown-self-hosted
 version: main
 nav:
-  - nav.adoc
+  - modules/ROOT/nav.adoc
+asciidoc:
+  attributes:
+    project-name: Gastown
+    project-version: 1.0.0
+    docs-url: https://docs.gastown.io
+    github-url: https://github.com/gastown-io/gastown
+    docker-registry: gastownio
