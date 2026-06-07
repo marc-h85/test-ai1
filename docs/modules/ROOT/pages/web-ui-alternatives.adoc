@@ -1,0 +1,427 @@
+= Alternative Web UIs
+:toc: macro
+:toc-title: On This Page
+
+toc::[]
+
+{project-name} provides two built-in interfaces for monitoring and interacting with your multi-agent workspace: a web dashboard (`gt dashboard`) and a terminal activity feed (`gt feed`). In addition, a community-maintained web GUI offers a richer browser-based experience.
+
+This chapter covers all available UIs -- built-in, community, and companion tools -- and explains how each integrates with {project-name}.
+
+== Built-in: Web Dashboard
+
+The `gt dashboard` command starts a single-page web application that provides an overview of everything happening in your workspace.
+
+[source,bash]
+----
+# Start dashboard on default port (7667)
+gt dashboard
+
+# Start on custom port and open browser
+gt dashboard --port 3000 --open
+----
+
+The dashboard auto-refreshes via htmx and includes a command palette for running `gt` commands directly from the browser. It shows agents, convoys, hooks, queues, issues, and escalations in a single view.
+
+[NOTE]
+====
+The dashboard must be run from inside a {project-name} workspace (HQ) directory. Set the `DASHBOARD_PORT` environment variable to change the default port.
+====
+
+== Built-in: TUI Activity Feed
+
+The `gt feed` command launches an interactive terminal dashboard with three panels:
+
+[cols="1,3"]
+|===
+| Panel | Description
+
+| Agent Tree
+| Hierarchical view of all agents grouped by rig and role
+
+| Convoy Panel
+| In-progress and recently landed convoys
+
+| Event Stream
+| Chronological feed of creates, completions, slings, and nudges
+|===
+
+.Navigation shortcuts:
+* `j`/`k` -- Scroll
+* `Tab` -- Switch panels
+* `1`/`2`/`3` -- Jump to panel
+* `?` -- Help
+* `q` -- Quit
+
+=== Problems View
+
+Press `p` or run `gt feed --problems` to surface agents needing human intervention. Agents are grouped by health state:
+
+[cols="1,2"]
+|===
+| State | Condition
+
+| GUPP Violation
+| Hooked work with no progress for an extended period
+
+| Stalled
+| Hooked work with reduced progress
+
+| Zombie
+| Dead tmux session
+
+| Working
+| Active, progressing normally
+
+| Idle
+| No hooked work
+|===
+
+Intervention keys: `n` to nudge, `h` to handoff (refresh context).
+
+== Community: gastown-gui
+
+https://github.com/web3dev1337/gastown-gui[gastown-gui^] is a standalone web GUI for {project-name}, originally submitted as PR #212 and now maintained as an independent community project. It provides a richer browser-based interface than the built-in dashboard.
+
+=== Key Features
+
+* **Rig Management** -- Add, view, and organize project repositories
+* **Work Tracking** -- Create and manage work items (beads)
+* **Task Assignment** -- Sling work to rigs and agents
+* **Real-Time Updates** -- Live WebSocket updates for all operations
+* **PR Tracking** -- View GitHub pull requests across projects
+* **Mail Inbox** -- Read messages from agents and polecats
+* **Health Monitoring** -- Run doctor checks and view system status
+* **Polecat Management** -- Spawn, stop, and restart polecats from the UI
+* **Crew Management** -- Create, list, and view crew members
+* **Formula Operations** -- Create, list, and use Beads formulas
+
+=== Architecture
+
+The GUI acts as a bridge between the browser and the {project-name} CLI. All operations execute through the official `gt` and `bd` commands -- the GUI never directly modifies {project-name}'s internal state.
+
+[Architecture flow:]
+----
+[Browser] --> HTTP/WebSocket --> [gastown-gui server] --> subprocess calls (gt, bd, gh) --> [~/gt/ workspace]
+----
+
+.Design principles:
+
+* **Server-Authoritative** -- All operations run via CLI commands only
+* **Non-Blocking UI** -- Modals close immediately; operations run in background
+* **Real-Time Updates** -- WebSocket broadcasts to all connected clients
+* **Graceful Degradation** -- Handles missing data and command failures
+
+=== API Endpoints
+
+The GUI exposes REST endpoints that map to CLI commands:
+
+[cols="1,1,2"]
+|===
+| Method | Endpoint | CLI Command
+
+| GET
+| `/api/status`
+| `gt status --json`
+
+| GET
+| `/api/rigs`
+| `gt rig list`
+
+| POST
+| `/api/rigs`
+| `gt rig add`
+
+| GET
+| `/api/work`
+| `bd list`
+
+| POST
+| `/api/work`
+| `bd new`
+
+| POST
+| `/api/sling`
+| `gt sling`
+
+| GET
+| `/api/prs`
+| `gh pr list`
+
+| GET
+| `/api/mail`
+| `gt mail inbox`
+
+| GET
+| `/api/doctor`
+| `gt doctor`
+|===
+
+=== Installation
+
+[source,bash]
+----
+# Install via npm (recommended)
+npm install -g gastown-gui
+
+# Or from source
+git clone https://github.com/web3dev1337/gastown-gui.git
+cd gastown-gui
+npm install && npm link
+----
+
+=== Running
+
+[source,bash]
+----
+# Start and open browser
+gastown-gui start --open
+
+# Verify prerequisites
+gastown-gui doctor
+----
+
+.Configuration options:
+
+[cols="1,1,3"]
+|===
+| Flag | Default | Description
+
+| `--port, -p`
+| 7667
+| Server port
+
+| `--host, -h`
+| 127.0.0.1
+| Server host
+
+| `--open, -o`
+| false
+| Open browser on start
+
+| `--dev`
+| false
+| Development mode
+|===
+
+.Environment variables:
+
+[cols="1,1,3"]
+|===
+| Variable | Default | Purpose
+
+| `GASTOWN_PORT`
+| 7667
+| Server port
+
+| `HOST`
+| 127.0.0.1
+| Server host
+
+| `GT_ROOT`
+| ~/gt
+| {project-name} root directory
+
+| `GT_BIN`
+| auto-detect
+| Override `gt` executable path
+
+| `BD_BIN`
+| auto-detect
+| Override `bd` executable path
+|===
+
+=== Nix/NixOS Deployment
+
+gastown-gui includes a Nix flake with a NixOS service module:
+
+[source,nix]
+----
+{
+  inputs.gastown-gui.url = "github:web3dev1337/gastown-gui";
+
+  outputs = { self, nixpkgs, gastown-gui, ... }: {
+    nixosConfigurations.my-host = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [
+        gastown-gui.nixosModules.deployment
+        ({
+          services.gastown-gui = {
+            enable = true;
+            host = "127.0.0.1";
+            port = 7667;
+            openFirewall = false;
+          };
+        })
+      ];
+    };
+  };
+}
+----
+
+=== Strengths for {project-name}
+
+* **Server-authoritative design** -- All mutations go through `gt` and `bd`; the GUI cannot corrupt workspace state
+* **Real-time visibility** -- WebSocket push means all tabs stay in sync without polling
+* **NixOS support** -- Production-ready systemd module with hardening defaults (NoNewPrivileges, PrivateTmp, ProtectSystem)
+* **Independent from core** -- Does not require changes to {project-name} itself; can be updated on its own cadence
+
+=== Considerations
+
+* Status: Candidate for Testing (v0.9.7) -- not yet production-stable
+* Agent configuration must still be done via CLI; the GUI does not yet expose all `gt config` options
+* Vanilla JavaScript frontend (no framework) -- may limit future extensibility
+
+== Companion: gastown-remote
+
+https://github.com/numman-ali/gastown-remote[gastown-remote^] deploys {project-name} to a VPS with always-on access via Tailscale. While not a UI itself, it provides the infrastructure for persistent agent operations accessible from any device.
+
+=== Key Features
+
+* **Web Wizard** -- Browser-based config generator at https://gastown.dev[gastown.dev^] (client-side only; credentials never touch servers)
+* **GitHub Actions deployment** -- Trigger deploys from the GitHub mobile app
+* **Tailscale integration** -- Secure access from phone, laptop, or tablet
+* **systemd auto-restart** -- Agents survive reboots
+* **~$4/month** on Hetzner CX22 (2 vCPU, 4 GB RAM)
+
+[NOTE]
+====
+gastown-remote does not add a monitoring dashboard. After deploying, access `gt dashboard` and `gt feed` via SSH through Tailscale. Recommended mobile SSH clients: Blink Shell (iOS, built-in Tailscale), Termux (Android).
+====
+
+== Companion: gastown-mission-district
+
+https://github.com/mindfu23/gastown-mission-district[gastown-mission-district^] is a fork of {project-name} that extends it with multi-model AI agent orchestration and Gemini image generation. It inherits all built-in UIs (`gt dashboard`, `gt feed`) and adds:
+
+* **Multi-model router** -- Assign different LLM backends (Claude, GPT-4o, Gemini Pro/Flash, Perplexity) to different agent roles
+* **Token usage tracking** -- Per-model cost monitoring via `bin/gt-usage`
+* **Imagen integration** -- Image generation directly from agent workflows
+
+=== Agent Scripts
+
+[cols="1,1,1"]
+|===
+| Script | Model | Role
+
+| `agents/claude-tracked`
+| Claude (Anthropic)
+| Default -- tracked usage
+
+| `agents/gemini-pro`
+| Gemini Pro
+| Reasoning / complex tasks
+
+| `agents/gemini-flash`
+| Gemini Flash
+| Fast / cheap tasks
+
+| `agents/gpt4o`
+| GPT-4o
+| Alternative reasoning
+
+| `agents/gpt4o-mini`
+| GPT-4o-mini
+| Fast / cheap tasks
+
+| `agents/perplexity`
+| Perplexity
+| Web search / research
+
+| `agents/imagen`
+| Gemini Imagen
+| Image generation
+
+| `agents/imagen-batch`
+| Gemini Imagen
+| Batch image generation
+|===
+
+[CAUTION]
+====
+gastown-mission-district is a community fork and may lag behind the upstream {project-name} release. Verify compatibility before relying on it in production.
+====
+
+== Comparison
+
+[options="header", cols="2,1,1,1,1"]
+|===
+| | `gt dashboard` | `gt feed` | gastown-gui | gastown-remote
+
+| Interface type
+| Web (htmx)
+| Terminal (TUI)
+| Web (WebSocket)
+| Deployment tool
+
+| Real-time updates
+| Yes (htmx poll)
+| Yes (terminal)
+| Yes (WebSocket)
+| N/A
+
+| Rig management
+| View only
+| View only
+| Full CRUD
+| N/A
+
+| Work tracking (beads)
+| View only
+| View + filter
+| Create + manage
+| N/A
+
+| Task assignment (sling)
+| Command palette
+| Via `gt sling`
+| Yes (UI buttons)
+| N/A
+
+| PR tracking
+| No
+| No
+| Yes (`gh pr list`)
+| N/A
+
+| Mail inbox
+| No
+| No
+| Yes
+| N/A
+
+| Health monitoring
+| Status page
+| Problems view
+| Doctor checks
+| N/A (provisioning)
+
+| Requires running `gt`
+| Yes
+| Yes
+| Yes
+| Installs `gt`
+
+| Maturity
+| Stable
+| Stable
+| Testing (v0.9.7)
+| Early
+|===
+
+== Recommendations
+
+=== For day-to-day monitoring
+
+Use **`gt feed`** for terminal-native monitoring during development. It provides the fastest feedback loop and integrates with your existing tmux workflow.
+
+=== For team visibility and remote access
+
+Use **gastown-gui** when you need a browser-based interface for managing rigs, assigning work, and monitoring agents -- especially for team members who prefer not to use the CLI directly.
+
+=== For always-on cloud deployment
+
+Use **gastown-remote** to deploy {project-name} to a VPS with persistent sessions, then access `gt dashboard` and `gt feed` via Tailscale SSH from any device.
+
+=== For multi-model orchestration
+
+Use **gastown-mission-district** when you need to route different agent roles to different LLM providers (e.g., Claude for reasoning, Gemini Flash for classification, Perplexity for research).

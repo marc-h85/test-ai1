@@ -23,6 +23,14 @@
 *** Agent Management
 *** Dashboard Usage
 *** Real-Time Features
+** xref:web-ui-alternatives.adoc[Alternative Web UIs]
+*** Built-in: Web Dashboard
+*** Built-in: TUI Activity Feed
+*** Community: gastown-gui
+*** Companion: gastown-remote
+*** Companion: gastown-mission-district
+*** Comparison
+*** Recommendations
 
 * Reference
 ** Environment Variables
