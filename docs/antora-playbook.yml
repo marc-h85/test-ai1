@@ -5,10 +5,10 @@ site:
 
 content:
   sources:
-    - url: ..
-      start_paths:
-        - docs
-
+    - url: .
+      branches: HEAD
+      start_path: docs
+      
 ui:
   bundle:
     url: https://gitlab.com/antora/antora-ui-default/-/raw/main/ui-bundles/default.zip
