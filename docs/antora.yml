@@ -1,0 +1,4 @@
+name: gastown-self-hosted
+version: main
+nav:
+  - nav.adoc
