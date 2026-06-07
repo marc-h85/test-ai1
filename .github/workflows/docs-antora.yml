@@ -20,5 +20,5 @@ jobs:
       - name: Install Antora
         run: npm i antora
       - name: Generate Site
-        run: cd docs && npx antora antora-playbook.yml
+        run: npx antora docs/antora-playbook.yml
       
