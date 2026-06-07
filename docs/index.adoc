@@ -1,0 +1,31 @@
+= {project-name} Self-Hosted Documentation
+:toc: macro
+:toc-title: Contents
+
+toc::[]
+
+== Overview
+
+{project-name} is a comprehensive agent orchestration platform designed for teams that need controlled, cost-managed access to LLM capabilities on their own infrastructure. This documentation guides operators through self-hosting Gastown with full control over LLM providers, security policies, and development workflows.
+
+=== Key Features
+
+* **Multi-Provider LLM Gateway**: Route requests to multiple LLM providers with budget controls
+* **Docker-Based Deployment**: Simple containerized deployment with minimal system requirements
+* **Role-Based Access Control**: Fine-grained permissions for teams and organizations
+* **Real-Time Agent Dashboard**: Monitor and manage agent workflows in real-time
+* **Cost Management**: Token counting, rate limiting, and budget enforcement
+
+=== What You'll Find
+
+This documentation covers:
+
+* Self-hosted installation and configuration
+* LLM gateway setup with providers, models, and cost controls
+* Web UI customization for agentic development workflows
+* SSL/TLS configuration and security considerations
+* Monitoring and metrics for production deployments
+
+=== Getting Started
+
+Start with the xref:self-hosted-installation.adoc[Self-Hosted Installation] guide to deploy Gastown on your infrastructure.

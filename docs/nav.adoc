@@ -1,0 +1,32 @@
+* Installation
+** xref:self-hosted-installation.adoc[Self-Hosted Installation]
+*** System Requirements
+*** Docker Deployment
+*** Environment Variables
+*** SSL/TLS Configuration
+*** Initialization
+
+* LLM Gateway
+** xref:llm-gateway.adoc[LLM Gateway Configuration]
+*** Provider Setup
+*** Model Configuration
+*** Rate Limiting
+*** Token Counting
+*** Budget Enforcement
+*** Caching
+*** Metrics
+
+* Web UI
+** xref:web-ui-setup.adoc[Web UI Setup]
+*** Architecture Overview
+*** Authentication
+*** Agent Management
+*** Dashboard Usage
+*** Real-Time Features
+
+* Reference
+** Environment Variables
+*** Core Configuration
+*** Database Settings
+*** Security Settings
+*** LLM Provider Settings

@@ -1,0 +1,269 @@
+= Self-Hosted Installation
+:toc: macro
+:toc-title: On This Page
+
+toc::[]
+
+This guide covers installing {project-name} on your own infrastructure using Docker containers. The installation includes the LLM gateway, database, web UI, and real-time communication services.
+
+== System Requirements
+
+.Minimum Requirements
+[options="header"]
+|===
+| Resource | Minimum | Recommended
+| CPU | 2 cores | 4+ cores
+| RAM | 4GB | 8GB+
+| Storage | 20GB | 50GB+
+| OS | Linux (Ubuntu 20.04+) | Linux (Ubuntu 22.04+)
+|===
+
+.Software Requirements
+* Docker Engine 20.10+
+* Docker Compose 2.0+
+* OpenSSL (for SSL certificate generation)
+
+== Docker Deployment
+
+=== Quick Start
+
+. Create a working directory for {project-name}
++
+[source,bash]
+----
+mkdir -p /opt/gastown
+cd /opt/gastown
+----
+
+. Download the Docker Compose configuration
++
+[source,bash]
+----
+curl -O https://raw.githubusercontent.com/gastown-io/gastown/main/docker-compose.yml
+----
+
+. Start the services
++
+[source,bash]
+----
+docker compose up -d
+----
+
+=== Services Architecture
+
+The `docker-compose.yml` includes:
+
+[cols="2,3,2"]
+|===
+| Service | Description | Default Port
+
+| gateway
+| LLM API gateway with budget controls
+| 8080
+
+| ui
+| Web UI for agent management and dashboard
+| 3000
+
+| ws
+| WebSocket server for real-time agent communication
+| 8081
+
+| db
+| PostgreSQL database for persistence
+| 5432
+
+| redis
+| Redis cache for session and rate limiting
+| 6379
+|===
+
+== Environment Variables
+
+=== Core Configuration
+
+.Core Settings
+[options="header", cols="2,2,3"]
+|===
+| Variable | Default | Description
+| `GASTOWN_ENV`
+| `production`
+| Environment mode (development, staging, production)
+
+| `GASTOWN_LOG_LEVEL`
+| `info`
+| Logging verbosity (debug, info, warn, error)
+|===
+
+=== Database Settings
+
+[options="header", cols="2,2,3"]
+|===
+| Variable | Required | Description
+| `DATABASE_URL`
+| Yes
+| PostgreSQL connection string
+
+| `DATABASE_SSL_MODE`
+| `disable`
+| SSL mode (disable, require, verify-full)
+
+| `DATABASE_MAX_CONNECTIONS`
+| `20`
+| Maximum database connection pool size
+|===
+
+=== Security Settings
+
+[options="header", cols="2,2,3"]
+|===
+| Variable | Default | Description
+| `JWT_SECRET`
+| _required_
+| Secret for signing JWT tokens (32+ chars)
+
+| `SESSION_SECRET`
+| _required_
+| Secret for session encryption
+
+| `COOKIE_SECURE`
+| `true`
+| Set secure flag on cookies
+
+| `COOKIE_DOMAIN`
+| _none_
+| Cookie domain for CORS
+|===
+
+=== LLM Provider Settings
+
+[options="header", cols="2,2,3"]
+|===
+| Variable | Default | Description
+| `DEFAULT_LLM_PROVIDER`
+| `openai`
+| Default provider for LLM requests
+
+| `OPENAI_API_KEY`
+| _required if using OpenAI_
+| OpenAI API key
+
+| `ANTHROPIC_API_KEY`
+| _required if using Anthropic_
+| Anthropic API key
+
+| `OLLAMA_HOST`
+| _required if using Ollama_
+| Ollama server URL for local models
+|===
+
+== SSL/TLS Configuration
+
+=== Using Let's Encrypt
+
+For production deployments, use Let's Encrypt for automatic certificate management:
+
+[source,bash]
+----
+# Install certbot
+apt-get install certbot
+
+# Obtain certificates
+certbot certonly --standalone -d your-domain.com
+
+# Configure certificate paths in environment
+export TLS_CERT_PATH=/etc/letsencrypt/live/your-domain.com/fullchain.pem
+export TLS_KEY_PATH=/etc/letsencrypt/live/your-domain.com/privkey.pem
+----
+
+=== Manual Certificate Installation
+
+.Place certificates in a persistent volume:
+* Certificate: `./certs/server.crt`
+* Private Key: `./certs/server.key`
+
+.Mount in Docker Compose:
+[source,yaml]
+----
+services:
+  gateway:
+    volumes:
+      - ./certs:/app/certs:ro
+----
+
+=== SSL Environment Variables
+
+[options="header", cols="2,2,3"]
+|===
+| Variable | Required | Description
+| `TLS_CERT_PATH`
+| Yes (for HTTPS)
+| Path to TLS certificate file
+
+| `TLS_KEY_PATH`
+| Yes (for HTTPS)
+| Path to TLS private key file
+
+| `TLS_REDIRECT_HTTP`
+| `true`
+| Redirect HTTP to HTTPS
+|===
+
+== Initialization
+
+=== Initial Setup
+
+.After starting services, run the initialization:
+[source,bash]
+----
+# Create admin user
+docker compose exec gateway gastown-cli users create-admin \
+  --email admin@example.com \
+  --password secure-password
+
+# Verify database migrations
+docker compose exec gateway gastown-cli db status
+
+# Check service health
+curl https://your-domain.com/health
+----
+
+=== Database Migration
+
+[NOTE]
+====
+Migrations run automatically on first startup. The `db` service waits for PostgreSQL to be ready.
+====
+
+.Manual migration (if needed):
+[source,bash]
+----
+docker compose exec gateway gastown-cli db migrate
+docker compose exec gateway gastown-cli db seed
+----
+
+=== Health Checks
+
+.Verify all services:
+[source,bash]
+----
+# Gateway health
+curl https://localhost:8080/health
+
+# Database connectivity
+docker compose exec gateway gastown-cli db ping
+
+# WebSocket connectivity
+wscat -c ws://localhost:8081/health
+----
+
+=== Post-Installation
+
+.After installation, configure:
+
+. LLM providers in the admin UI
+. User accounts and permissions
+. Rate limiting policies
+. Budget thresholds for cost control
+
+.See xref:llm-gateway.adoc[LLM Gateway Configuration] for provider setup details.
