@@ -1,0 +1,17 @@
+name: Build Documentation
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build site with Antora
+        uses: docker://antora/docker-antora
+        with:
+          args: antora --stacktrace --fetch docs/antora-playbook.yml
