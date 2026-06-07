@@ -14,4 +14,5 @@ jobs:
       - name: Build site with Antora
         uses: docker://antora/antora
         with:
-          args: antora --stacktrace --fetch docs/antora-playbook.yml
+          args: antora --stacktrace --fetch antora-playbook.yml
+        working-directory: docs

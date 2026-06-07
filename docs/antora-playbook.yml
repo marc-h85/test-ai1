@@ -5,9 +5,9 @@ site:
 
 content:
   sources:
-    - url: .
+    - url: ..
       start_paths:
-        - ""
+        - docs
       branches:
         - main
 
