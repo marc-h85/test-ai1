@@ -1,0 +1,30 @@
+site:
+  title: Gastown Self-Hosted Documentation
+  url: https://docs.gastown.io
+  start_page: gastown-self-hosted::index.adoc
+
+content:
+  sources:
+    - url: .
+      start_paths:
+        - docs
+      branches:
+        - main
+
+ui:
+  bundle:
+    url: https://gitlab.com/antora/antora-ui-default/-/raw/main/ui-bundles/default.zip
+    snapshot: true
+
+output:
+  clean: true
+  dir: build/site
+
+asciidoc:
+  attributes:
+    page-pagination: true
+    toc: left
+    sectanchors: true
+
+urls:
+  html_extension_style: indexify

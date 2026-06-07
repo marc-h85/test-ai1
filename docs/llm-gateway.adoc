@@ -1,0 +1,295 @@
+= LLM Gateway Configuration
+:toc: macro
+:toc-title: On This Page
+
+toc::[]
+
+The LLM Gateway is the core component that manages all LLM requests with cost controls, rate limiting, and caching. This guide covers configuration of providers, models, and operational settings.
+
+== Architecture Overview
+
+The gateway acts as a reverse proxy for LLM requests, adding layers of:
+
+* Provider abstraction and failover
+* Cost tracking and budget enforcement
+* Rate limiting per key/model/provider
+* Token counting and request logging
+* Response caching for efficiency
+
+== Provider Setup
+
+=== Supported Providers
+
+[cols="2,3,2"]
+|===
+| Provider | API Key Required | Features
+| OpenAI
+| Yes
+| Models, embeddings, fine-tuning
+
+| Anthropic
+| Yes
+| Claude models, embeddings
+
+| Ollama
+| No
+| Local models, no API key
+
+| Google
+| Yes
+| Gemini models
+
+| Azure OpenAI
+| Yes
+| Enterprise deployment
+|===
+
+=== Configuring Providers
+
+.Providers are configured via environment variables or admin UI.
+
+.OpenAI Configuration
+[source,bash]
+----
+export OPENAI_API_KEY=sk-...
+export OPENAI_ORG_ID=org-... # Optional
+export DEFAULT_LLM_PROVIDER=openai
+----
+
+.Anthropic Configuration
+[source,bash]
+----
+export ANTHROPIC_API_KEY=sk-...
+----
+
+.Ollama Configuration (Local Models)
+[source,bash]
+----
+export OLLAMA_HOST=http://ollama:11434
+----
+
+== Model Configuration
+
+=== Model Registry
+
+.Model definitions are stored in the database or configured via YAML.
+
+.Example Model Configuration
+[source,yaml]
+----
+models:
+  - id: gpt-4
+    provider: openai
+    model: gpt-4
+    max_tokens: 8192
+    cost_per_1k_tokens: 0.03
+
+  - id: claude-3-opus
+    provider: anthropic
+    model: claude-3-opus-20240229
+    max_tokens: 200000
+    cost_per_1k_tokens: 0.015
+
+  - id: llama-3
+    provider: ollama
+    model: llama3
+    max_tokens: 8192
+    cost_per_1k_tokens: 0
+----
+
+=== Model Selection
+
+.Requests can specify model by ID or use the default provider model.
+
+[source,json]
+----
+{
+  "model": "gpt-4",
+  "messages": [...],
+  "max_tokens": 1000
+}
+----
+
+== Rate Limiting
+
+=== Configuration
+
+.Rate limits prevent runaway costs and API abuse.
+
+.Rate Limit Settings
+[options="header", cols="2,2,3"]
+|===
+| Variable | Default | Description
+| `RATE_LIMIT_REQUESTS_PER_MINUTE`
+| `60`
+| Max requests per minute per API key
+
+| `RATE_LIMIT_TOKENS_PER_MINUTE`
+| `20000`
+| Max tokens processed per minute
+
+| `RATE_LIMIT_BURST_MULTIPLIER`
+| `2`
+| Allow burst up to Nx limit
+|===
+
+=== Per-Model Limits
+
+.Set model-specific rate limits in the admin UI or via API.
+
+[source,json]
+----
+{
+  "model": "gpt-4",
+  "limits": {
+    "requests_per_minute": 30,
+    "tokens_per_minute": 8000
+  }
+}
+----
+
+== Token Counting
+
+=== Automatic Counting
+
+.Token counting tracks usage for cost calculation and limits.
+
+.Token count is extracted from responses:
+* OpenAI: `usage.total_tokens`
+* Anthropic: `usage.total_tokens`
+* Ollama: Estimated via tokenizer
+
+=== Input Token Pre-Counting
+
+.Reduce costs by pre-validating token limits.
+
+[source,bash]
+----
+# Configure max input tokens per model
+export MODEL_MAX_INPUT_TOKENS_GPT4=6000
+export MODEL_MAX_INPUT_TOKENS_CLAUDE=100000
+----
+
+== Budget Enforcement
+
+=== Budget Configuration
+
+.Set organization and user-level budgets.
+
+.Budget Settings
+[options="header", cols="2,2,3"]
+|===
+| Variable | Default | Description
+| `BUDGET_DEFAULT_DAILY_USD`
+| `100`
+| Default daily budget per org
+
+| `BUDGET_DEFAULT_MONTHLY_USD`
+| `1000`
+| Default monthly budget per org
+
+| `BUDGET_HARD_LIMIT_ENABLED`
+| `true`
+| Reject requests over budget
+|===
+
+=== Budget Response
+
+.Requests exceeding budget return an error:
+
+[source,json]
+----
+{
+  "error": "Budget exceeded",
+  "code": "BUDGET_EXCEEDED",
+  "current_usage": 105.50,
+  "budget_limit": 100.00
+}
+----
+
+== Caching
+
+=== Cache Configuration
+
+.Caching reduces costs and latency for repeated requests.
+
+.Cache Settings
+[options="header", cols="2,2,3"]
+|===
+| Variable | Default | Description
+| `CACHE_ENABLED`
+| `true`
+| Enable response caching
+
+| `CACHE_TTL_SECONDS`
+| `300`
+| Cache time-to-live
+
+| `CACHE_MAX_SIZE_MB`
+| `100`
+| Maximum cache size
+|===
+
+=== Cache Behavior
+
+.Cache keys are based on:
+* Model ID
+* Request messages (hashed)
+* Request parameters (temperature, max_tokens)
+
+[NOTE]
+====
+Streaming responses are not cached. Only complete responses are cached.
+====
+
+== Metrics
+
+=== Prometheus Metrics
+
+.The gateway exposes Prometheus-compatible metrics.
+
+.Available Endpoints:
+* `/metrics` - Prometheus metrics
+* `/health` - Health check with status
+
+.Metrics Include:
+* Request count by provider/model
+* Token usage totals
+* Cost tracking
+* Cache hit/miss ratio
+* Rate limit events
+
+=== Grafana Dashboard
+
+.Import the provided Grafana dashboard:
+
+.Steps:
+. Add Prometheus data source in Grafana
+. Import dashboard from `grafana/gastown-dashboard.json`
+. Customize alert thresholds
+
+=== Log Format
+
+.Structured JSON logs for parsing:
+
+[source,json]
+----
+{
+  "timestamp": "2024-01-15T10:30:00Z",
+  "level": "info",
+  "provider": "openai",
+  "model": "gpt-4",
+  "tokens": 500,
+  "cost": 0.015,
+  "cached": false,
+  "request_id": "req_123..."
+}
+----
+
+=== Alerting
+
+.Configure alerts for:
+* Daily budget at 80%
+* Rate limit violations
+* Provider API errors
+* Cache miss ratio > 50%

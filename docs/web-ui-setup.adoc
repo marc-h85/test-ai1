@@ -1,0 +1,316 @@
+= Web UI Setup
+:toc: macro
+:toc-title: On This Page
+
+toc::[]
+
+The Web UI provides a comprehensive interface for agent management, real-time monitoring, and development workflow control. This guide covers setup and configuration for production use.
+
+== Architecture Overview
+
+.Web UI Components:
+
+[plantuml, gastown-ui-architecture, svg]
+----
+@startuml
+!define AWSPUML https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v14.0/LATEST/AWSPUML
+skinparam backgroundColor #FFFFFF
+
+package "Gastown UI" {
+  [Web UI] --> [WebSocket]
+  [Web UI] --> [Gateway API]
+  [Gateway API] --> [LLM Providers]
+  [WebSocket] --> [Agent Workers]
+}
+@enduml
+----
+
+=== Core Services
+
+* **UI Server**: React SPA served by Nginx
+* **Gateway**: REST API for admin operations
+* **WebSocket**: Real-time agent communication
+* **Agent Workers**: Containerized execution environments
+
+== Authentication
+
+=== JWT Configuration
+
+.Authentication uses JWT tokens with configurable secrets.
+
+[source,bash]
+----
+export JWT_SECRET=your-32-character-secret-here
+export JWT_EXPIRY_HOURS=24
+----
+
+=== Session Management
+
+.Sessions are stored in Redis:
+
+[options="header", cols="2,2,3"]
+|===
+| Variable | Default | Description
+| `SESSION_SECRET`
+| _required_
+| Secret for session encryption
+
+| `SESSION_COOKIE_NAME`
+| `gastown_session`
+| Cookie name
+
+| `SESSION_MAX_AGE_DAYS`
+| `7`
+| Session expiration
+|===
+
+=== OAuth Integration
+
+.Optional OAuth providers:
+
+.GitHub OAuth
+[source,bash]
+----
+export GITHUB_OAUTH_CLIENT_ID=...
+export GITHUB_OAUTH_CLIENT_SECRET=...
+----
+
+.Google OAuth
+[source,bash]
+----
+export GOOGLE_OAUTH_CLIENT_ID=...
+export GOOGLE_OAUTH_CLIENT_SECRET=...
+----
+
+== Agent Management
+
+=== Agent Types
+
+.Supported agent types:
+
+[cols="2,3"]
+|===
+| Type | Description
+| `general`
+| General-purpose LLM agents
+
+| `coder`
+| Code-focused agents with tool access
+
+| `reviewer`
+| Code review and quality agents
+
+| `ops`
+| Infrastructure and operations agents
+|===
+
+=== Agent Configuration
+
+.Create agents via UI or API:
+
+[source,json]
+----
+{
+  "name": "production-coder",
+  "type": "coder",
+  "provider": "openai",
+  "model": "gpt-4",
+  "permissions": ["read", "write", "execute"],
+  "rate_limits": {
+    "requests_per_hour": 100
+  }
+}
+----
+
+=== Resource Limits
+
+.Agent resource allocation:
+
+[options="header", cols="2,2,3"]
+|===
+| Variable | Default | Description
+| `AGENT_MEMORY_LIMIT_MB`
+| `512`
+| Memory limit per agent container
+
+| `AGENT_CPU_LIMIT`
+| `0.5`
+| CPU limit (cores)
+
+| `AGENT_TIMEOUT_SECONDS`
+| `300`
+| Max execution time
+|===
+
+== Dashboard Usage
+
+=== Real-Time Monitoring
+
+.The dashboard provides:
+
+* Agent status (active, idle, error)
+* Resource usage graphs
+* Request/response history
+* Cost tracking
+
+=== Views
+
+.Dashboard Views:
+* **Agents**: List and manage all agents
+* **Requests**: View LLM request history and costs
+* **Metrics**: Real-time performance graphs
+* **Settings**: Configuration management
+
+=== API Access
+
+.Access the dashboard API:
+
+[source,bash]
+----
+# Get agent list
+curl -H "Authorization: Bearer $TOKEN" \
+  https://your-domain.com/api/v1/agents
+
+# Get metrics
+curl -H "Authorization: Bearer $TOKEN" \
+  https://your-domain.com/api/v1/metrics
+----
+
+== Real-Time Features
+
+=== WebSocket Connection
+
+.Real-time updates via WebSocket:
+
+[source,javascript]
+----
+const ws = new WebSocket('wss://your-domain.com/ws');
+
+ws.on('agent_status', (data) => {
+  console.log('Agent status update:', data);
+});
+
+ws.on('request_complete', (data) => {
+  console.log('Request completed:', data);
+});
+----
+
+=== Event Types
+
+.Subscribe to events:
+
+[cols="2,3"]
+|===
+| Event | Payload
+| `agent.created`
+| Agent registration details
+
+| `agent.status`
+| Status changes (idle, running, error)
+
+| `request.started`
+| Request metadata and ID
+
+| `request.completed`
+| Response with tokens and cost
+
+| `request.failed`
+| Error details
+|===
+
+=== Live Updates
+
+.Dashboard automatically updates:
+* Agent list refreshes every 5 seconds
+* Metrics graph updates every second
+* Log stream follows agent activity
+
+== Production Configuration
+
+=== Reverse Proxy
+
+.Nginx configuration for production:
+
+[source,nginx]
+----
+server {
+    listen 443 ssl;
+    server_name your-domain.com;
+
+    ssl_certificate /etc/ssl/certs/server.crt;
+    ssl_certificate_key /etc/ssl/private/server.key;
+
+    location / {
+        proxy_pass http://ui:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location /ws {
+        proxy_pass http://ws:8081;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+----
+
+=== Static File Serving
+
+.Build and serve static assets:
+
+[source,bash]
+----
+# Build static files
+docker compose run ui npm run build
+
+# Serve with Nginx
+location /static/ {
+    alias /app/static/;
+    expires 30d;
+}
+----
+
+=== Persistent Volumes
+
+.Volumes to persist:
+
+[cols="2,3"]
+|===
+| Volume | Purpose
+| `gastown_db`
+| PostgreSQL data
+
+| `gastown_redis`
+| Redis cache data
+
+| `gastown_logs`
+| Application logs
+
+| `gastown_certs`
+| TLS certificates
+|===
+
+== Troubleshooting
+
+=== Common Issues
+
+.UI won't load:
+* Check `docker compose logs ui`
+* Verify JWT secret is set
+* Check browser console for errors
+
+.WebSocket disconnected:
+* Verify `ws` service is running
+* Check firewall settings for port 8081
+* Verify TLS configuration for WSS
+
+=== Debug Mode
+
+.Enable debug logging:
+
+[source,bash]
+----
+export GASTOWN_LOG_LEVEL=debug
+export UI_DEBUG=true
+----

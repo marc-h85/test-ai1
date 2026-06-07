@@ -1,0 +1,20 @@
+:doctype: book
+:toc: left
+:toclevels: 3
+:sectnums:
+:sectlinks:
+:sectanchors:
+:icons: font
+:source-highlighter: rouge
+:encoding: UTF-8
+:lang: en
+:stem:
+:underscore: _
+
+:project-name: Gastown
+:project-version: 1.0.0
+:docs-url: https://docs.gastown.io
+:github-url: https://github.com/gastown-io/gastown
+
+# Docker image registry
+:docker-registry: gastownio
