@@ -12,6 +12,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build site with Antora
-        uses: docker://antora/docker-antora
+        uses: docker://antora/antora
         with:
           args: antora --stacktrace --fetch docs/antora-playbook.yml
